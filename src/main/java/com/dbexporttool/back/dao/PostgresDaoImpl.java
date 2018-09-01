@@ -1,15 +1,15 @@
-package com.dbexporttool.back.service.impl;
+package com.dbexporttool.back.dao;
 
-import com.dbexporttool.back.domain.ApplicationDataSource;
+import com.dbexporttool.back.domain.ApplicationDataBase;
 import com.dbexporttool.back.domain.ApplicationEntity;
-import com.dbexporttool.back.service.AbstractHibernateDao;
+import com.dbexporttool.back.dto.ApplicationTable;
 import javaslang.Tuple3;
 import org.hibernate.Session;
 import org.hibernate.type.BooleanType;
 import org.hibernate.type.DateType;
 import org.hibernate.type.IntegerType;
 import org.hibernate.type.LongType;
-import org.hibernate.type.TextType;
+import org.hibernate.type.StringType;
 import org.hibernate.type.TimestampType;
 import org.hibernate.type.Type;
 import org.slf4j.Logger;
@@ -34,8 +34,16 @@ public class PostgresDaoImpl extends AbstractHibernateDao {
 
     private static final String SCHEMA_DELIMETER = ".";
 
-    public PostgresDaoImpl(String tableName, String idName, ApplicationDataSource config) {
-        super(tableName, idName, config);
+    public PostgresDaoImpl(ApplicationTable table, ApplicationDataBase dataBase) {
+        super(table, configurate(dataBase));
+    }
+
+    private static ApplicationDataBase configurate(ApplicationDataBase config) {
+        if (!config.getUrl().contains("postgresql")) {
+            throw new RuntimeException(String.format("Wrong url for postgres: %s", config.getUrl()));
+        }
+
+        return config;
     }
 
     @Override
@@ -74,8 +82,10 @@ public class PostgresDaoImpl extends AbstractHibernateDao {
             result = TimestampType.INSTANCE;
         } else if (similarClasses(aClass, Boolean.class)) {
             result = BooleanType.INSTANCE;
-        } else {
-            result = TextType.INSTANCE;
+        } /*else if (!similarClasses(aClass, String.class) && !similarClasses(aClass, Character.class)) {
+            result = ObjectType.INSTANCE;
+        } */ else {
+            result = StringType.INSTANCE;
         }
 
         LOG.info("SQL type for class {} is {}", aClass.getName(), result);
@@ -84,15 +94,17 @@ public class PostgresDaoImpl extends AbstractHibernateDao {
 
     private String getTableStructure(List<Tuple3<String, Object, ? extends Class>> data) {
         return data.stream()
-                .map(tuple -> prepareCreateTableColumnRow(tuple))
+                .map(this::prepareCreateTableColumnRow)
                 .collect(Collectors.joining(", "));
     }
 
     private String prepareCreateTableColumnRow(Tuple3<String, Object, ? extends Class> tuple) {
-        String result = tuple._1 + " " + getType(tuple._3);
+        String result;
 
         if (tuple._1.equalsIgnoreCase(idName)) {
-            result = result + " PRIMARY KEY";
+            result = tuple._1 + " INTEGER PRIMARY KEY";
+        } else {
+            result = tuple._1 + " " + getType(tuple._3);
         }
 
         return result;
@@ -102,7 +114,7 @@ public class PostgresDaoImpl extends AbstractHibernateDao {
         String result;
 
         if (similarClasses(aClass, Long.class)) {
-            result = "BIGINTEGER";
+            result = "BIGINT";
         } else if (similarClasses(aClass, Integer.class)) {
             result = "INTEGER";
         } else if (similarClasses(aClass, Date.class)) {

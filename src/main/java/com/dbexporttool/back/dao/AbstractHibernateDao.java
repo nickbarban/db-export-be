@@ -1,12 +1,14 @@
-package com.dbexporttool.back.service;
+package com.dbexporttool.back.dao;
 
-import com.dbexporttool.back.domain.ApplicationDataSource;
+import com.dbexporttool.back.domain.ApplicationDataBase;
 import com.dbexporttool.back.domain.ApplicationEntity;
+import com.dbexporttool.back.dto.ApplicationTable;
 import javaslang.Tuple3;
 import org.hibernate.Session;
 import org.hibernate.query.NativeQuery;
 import org.hibernate.transform.AliasToEntityMapResultTransformer;
 import org.hibernate.type.LongType;
+import org.hibernate.type.StringType;
 import org.hibernate.type.Type;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.jdbc.datasource.TransactionAwareDataSourceProxy;
@@ -15,6 +17,7 @@ import org.springframework.orm.hibernate5.LocalSessionFactoryBean;
 import javax.sql.DataSource;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -24,48 +27,32 @@ import java.util.stream.IntStream;
  *
  * @author Nick Barban.
  */
-public abstract class AbstractHibernateDao {
+public abstract class AbstractHibernateDao implements AbstractDao {
 
     protected final String tableName;
-
     protected final String idName;
-
-    protected final ApplicationDataSource config;
-
+    protected final ApplicationDataBase config;
     protected final Session session;
 
-    public AbstractHibernateDao(String tableName, String idName, ApplicationDataSource config) {
-        this.tableName = tableName;
-        this.idName = idName;
-        this.config = config;
+    protected AbstractHibernateDao(ApplicationTable table, ApplicationDataBase dataBase) {
+        this.tableName = table.getName();
+        this.idName = table.getIdName();
+        this.config = dataBase;
         this.session = openSession();
     }
 
-    public HashMap<String, Object> get(Long id) {
+    @Override
+    public Map<String, Object> get(Long id) {
 
         try {
-            return (HashMap<String, Object>) getSession().createNativeQuery("SELECT * FROM " + getTableName() + " WHERE " + getIdName() + "=:id")
+            return (HashMap<String, Object>) getSession().createNativeQuery("SELECT * FROM " + tableName + " WHERE " + idName + "=:id")
                     .setParameter("id", id, LongType.INSTANCE)
                     .setResultTransformer(AliasToEntityMapResultTransformer.INSTANCE)
                     .uniqueResult();
         } catch (Exception e) {
-            String message = String.format("Can not select from %s with %s=%s", getTableName(), getIdName(), id);
+            String message = String.format("Can not select from %s with %s=%s", tableName, idName, id);
             throw new RuntimeException(message, e);
         }
-    }
-
-    public abstract void persist(ApplicationEntity entity);
-
-    public String getTableName() {
-        return tableName;
-    }
-
-    public String getIdName() {
-        return idName;
-    }
-
-    public ApplicationDataSource getConfig() {
-        return config;
     }
 
     public Session getSession() {
@@ -131,9 +118,9 @@ public abstract class AbstractHibernateDao {
                             .findFirst()
                             .orElseThrow(() -> new RuntimeException(String.format("Something went wrong as entity does not have column %s",
                                     insertableColumnNames.get(i))));
-                    Object value = tuple._2;
-                    Class type = tuple._3;
-                    query.setParameter(i + 1, value, getSqlType(type));
+                    Type type = getSqlType(tuple._3);
+                    Object value = type instanceof StringType ? String.valueOf(tuple._2) : tuple._2;
+                    query.setParameter(i + 1, value, type);
                 });
 
         query.executeUpdate();

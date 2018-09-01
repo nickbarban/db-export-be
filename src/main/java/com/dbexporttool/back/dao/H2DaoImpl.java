@@ -1,8 +1,8 @@
-package com.dbexporttool.back.service.impl;
+package com.dbexporttool.back.dao;
 
-import com.dbexporttool.back.domain.ApplicationDataSource;
+import com.dbexporttool.back.domain.ApplicationDataBase;
 import com.dbexporttool.back.domain.ApplicationEntity;
-import com.dbexporttool.back.service.AbstractHibernateDao;
+import com.dbexporttool.back.dto.ApplicationTable;
 import javaslang.Tuple3;
 import org.hibernate.Session;
 import org.hibernate.type.BooleanType;
@@ -31,8 +31,16 @@ public class H2DaoImpl extends AbstractHibernateDao {
 
     private final static Logger LOG = LoggerFactory.getLogger(H2DaoImpl.class);
 
-    public H2DaoImpl(String tableName, String idName, ApplicationDataSource config) {
-        super(tableName.equalsIgnoreCase("users") ? config.getDbName() + "_" + tableName : tableName, idName, config);
+    public H2DaoImpl(ApplicationTable table, ApplicationDataBase dataBase) {
+        super(configurate(table), dataBase);
+    }
+
+    private static ApplicationTable configurate(ApplicationTable table) {
+        if (table.getName().equalsIgnoreCase("users")) {
+            table.setName("app_" + table.getName());
+        }
+
+        return table;
     }
 
     @Override

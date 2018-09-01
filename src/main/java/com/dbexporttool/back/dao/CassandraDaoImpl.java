@@ -1,12 +1,13 @@
-package com.dbexporttool.back.service.impl;
+package com.dbexporttool.back.dao;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ColumnDefinitions;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
-import com.dbexporttool.back.domain.ApplicationDataSource;
+import com.dbexporttool.back.domain.ApplicationDataBase;
 import com.dbexporttool.back.domain.ApplicationEntity;
-import com.dbexporttool.back.service.AbstractHibernateDao;
+import com.dbexporttool.back.dto.ApplicationTable;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.StringUtils;
 import org.hibernate.type.Type;
 import org.slf4j.Logger;
@@ -23,7 +24,7 @@ import java.util.stream.Collectors;
  * @author Nick Barban.
  */
 
-public class CassandraDaoImpl {
+public class CassandraDaoImpl implements AbstractDao {
 
     private final static Logger LOG = LoggerFactory.getLogger(CassandraDaoImpl.class);
     private static final String HOST_PORT_DELIMETER = ":";
@@ -31,14 +32,14 @@ public class CassandraDaoImpl {
 
     private final String srcTable;
     private final String idName;
-    //    private final String host;
-//    private final Integer port;
+    private final ApplicationDataBase config;
     private Cluster cluster;
     private Session session;
 
-    public CassandraDaoImpl(String srcTable, String idName, ApplicationDataSource config) {
-        this.srcTable = srcTable;
-        this.idName = idName;
+    public CassandraDaoImpl(ApplicationTable table, ApplicationDataBase dataBase) {
+        this.srcTable = table.getName();
+        this.idName = table.getIdName();
+        this.config = dataBase;
         this.session = openSession(config);
     }
 
@@ -53,26 +54,17 @@ public class CassandraDaoImpl {
         Row result = session.execute("SELECT * FROM " + srcTable + " WHERE " + idName + "=" + id + ";").one();
         return result.getColumnDefinitions().asList().stream()
                 .collect(Collectors.toMap(ColumnDefinitions.Definition::getName, def -> result.getObject(def.getName()), (o1, o2) -> o1));
-        /*try {
-            return (HashMap<String, Object>) getSession().createNativeQuery("SELECT * FROM " + getTableName() + " WHERE " + getIdName() + "=:id")
-                    .setParameter("id", id, LongType.INSTANCE)
-                    .setResultTransformer(AliasToEntityMapResultTransformer.INSTANCE)
-                    .uniqueResult();
-        } catch (Exception e) {
-            String message = String.format("Can not select from %s with %s=%s", getTableName(), getIdName(), id);
-            throw new RuntimeException(message, e);
-        }*/
     }
 
     public void persist(ApplicationEntity entity) {
-
+        throw new NotImplementedException("Method persist is not implemented yet in CassandraDaoImpl");
     }
 
     protected Type getSqlType(Class type) {
         return null;
     }
 
-    private Session openSession(ApplicationDataSource config) {
+    private Session openSession(ApplicationDataBase config) {
         checkUrl(config.getUrl());
         String host = config.getUrl().trim().split(HOST_PORT_DELIMETER)[0];
         Integer port = Integer.parseInt(config.getUrl().trim().split(HOST_PORT_DELIMETER)[1]);
@@ -85,11 +77,11 @@ public class CassandraDaoImpl {
         return cluster.connect();
     }
 
-    private Session getSession() {
+    public Session getSession() {
         return this.session;
     }
 
-    private void close() {
+    public void close() {
         session.close();
         cluster.close();
     }
