@@ -10,6 +10,8 @@ import com.dbexporttool.back.dto.ApplicationTable;
 import com.dbexporttool.back.dto.RequestDTO;
 import com.dbexporttool.back.enums.DbType;
 import com.dbexporttool.back.service.ExportService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.assertj.core.api.Assertions;
 import org.hibernate.transform.AliasToEntityMapResultTransformer;
 import org.junit.Test;
@@ -18,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,7 +34,33 @@ public class BackApplicationTests {
     private ExportService exportService;
 
     @Test
-    public void contextLoads() {
+    public void contextLoads() throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        String srcUrl = "10.0.145.41:9042";
+        String srcUser = "nbarban";
+        String srcPassword = "Pass32Word";
+        ApplicationDataBase srcDb = new ApplicationDataBase(srcUrl, srcUser, srcPassword, null, null, DbType.CASSANDRA);
+        String tableName = "millhouse.drivers";
+        String idName = "user_id";
+        ApplicationTable table = new ApplicationTable(tableName, idName);
+        String destUrl = "jdbc:postgresql://localhost:5432/db_export";
+        String destUser = "postgres";
+        String destPassword = "master";
+        String destDriver = "org.postgresql.Driver";
+        String destDBName = "db_export";
+        ApplicationDataBase destDb = new ApplicationDataBase(destUrl, destUser, destPassword, destDriver, destDBName, DbType.POSTGRES);
+        RequestDTO dto = new RequestDTO(srcDb, table, destDb, 210L);
+        String json = mapper.writeValueAsString(dto);
+
+        System.out.println(new String(new char[100]).replace('\0', 'T'));
+        System.out.println(json);
+        System.out.println(new String(new char[100]).replace('\0', 'T'));
+
+        RequestDTO value = mapper.readValue(json, RequestDTO.class);
+
+        System.out.println(new String(new char[100]).replace('\0', 'T'));
+        System.out.println(ReflectionToStringBuilder.toString(value));
+        System.out.println(new String(new char[100]).replace('\0', 'T'));
     }
 
     @Test
@@ -304,10 +333,6 @@ public class BackApplicationTests {
                 .setParameter("param", givenId)
                 .setResultTransformer(AliasToEntityMapResultTransformer.INSTANCE)
                 .uniqueResult();
-        System.out.println(new String(new char[100]).replace('\0', 'T'));
-        System.out.println(actual.size());
-        System.out.println(actual);
-        System.out.println(new String(new char[100]).replace('\0', 'T'));
         Assertions.assertThat(actual)
                 .isNotNull()
                 .containsEntry(idName, givenId.intValue());
