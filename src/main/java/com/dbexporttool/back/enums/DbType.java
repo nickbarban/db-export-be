@@ -7,5 +7,6 @@ package com.dbexporttool.back.enums;
  */
 public enum DbType {
     POSTGRES,
-    H2, CASSANDRA
+    H2,
+    CASSANDRA
 }
